@@ -245,272 +245,408 @@ Save Budgets
 
 <script>
 
-let transactions=
-JSON.parse(localStorage.getItem("transactions"))||[];
+let transactions =
+JSON.parse(localStorage.getItem("transactions")) || [];
 
-let budgets=
-JSON.parse(localStorage.getItem("budgets"))||{
-Visa:500,
-Mastercard:300,
-Chequing:1500,
-Cash:200
+let budgets =
+JSON.parse(localStorage.getItem("budgets")) || {
+    Visa: 500,
+    Chequing: 1500,
+    Savings: 1000,
+    Cash: 200
 };
 
-function save(){
-localStorage.setItem(
-"transactions",
-JSON.stringify(transactions)
-);
-
-localStorage.setItem(
-"budgets",
-JSON.stringify(budgets)
-);
+if (localStorage.getItem("theme") === "dark") {
+    document.body.classList.add("dark");
 }
 
-function addTransaction(){
+function save() {
+    localStorage.setItem(
+        "transactions",
+        JSON.stringify(transactions)
+    );
 
-const transaction={
-id:Date.now(),
-date:new Date().toLocaleDateString(),
-type:document.getElementById("type").value,
-description:document.getElementById("desc").value,
-amount:Number(document.getElementById("amount").value),
-account:document.getElementById("account").value,
-category:document.getElementById("category").value
-};
-
-if(!transaction.description ||
-!transaction.amount){
-return alert("Fill all fields");
+    localStorage.setItem(
+        "budgets",
+        JSON.stringify(budgets)
+    );
 }
 
-transactions.unshift(transaction);
+function addTransaction() {
 
-save();
-render();
+    const transaction = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString(),
+        type: document.getElementById("type").value,
+        description: document.getElementById("desc").value,
+        amount: Number(
+            document.getElementById("amount").value
+        ),
+        account:
+            document.getElementById("account").value,
+        category:
+            document.getElementById("category").value
+    };
+
+    if (
+        !transaction.description ||
+        !transaction.amount
+    ) {
+        alert("Fill all fields");
+        return;
+    }
+
+    transactions.unshift(transaction);
+
+    document.getElementById("desc").value = "";
+    document.getElementById("amount").value = "";
+
+    save();
+    render();
 }
 
-function deleteTransaction(id){
+function deleteTransaction(id) {
 
-transactions=
-transactions.filter(t=>t.id!==id);
+    transactions =
+        transactions.filter(
+            t => t.id !== id
+        );
 
-save();
-render();
+    save();
+    render();
 }
 
-function saveBudgets(){
+function addAccount() {
 
-budgets.Visa=
-Number(document.getElementById("visaBudget").value||0);
+    const name =
+        document.getElementById(
+            "newAccount"
+        ).value.trim();
 
-budgets.Mastercard=
-Number(document.getElementById("mcBudget").value||0);
+    if (!name) return;
 
-budgets.Chequing=
-Number(document.getElementById("cheqBudget").value||0);
+    if (budgets[name]) {
+        alert("Account already exists");
+        return;
+    }
 
-budgets.Cash=
-Number(document.getElementById("cashBudget").value||0);
+    budgets[name] = 0;
 
-save();
-render();
+    document.getElementById(
+        "newAccount"
+    ).value = "";
+
+    save();
+    render();
 }
 
-function render(){
+function deleteAccount(name) {
 
-let totalBudget=0;
-let totalSpent=0;
-let totalIncome=0;
+    if (!confirm(
+        `Delete ${name}?`
+    )) return;
 
-Object.values(budgets).forEach(
-v=>totalBudget+=v
-);
+    delete budgets[name];
 
-transactions.forEach(t=>{
-if(t.type==="expense")
-totalSpent+=t.amount;
+    transactions =
+        transactions.filter(
+            t => t.account !== name
+        );
 
-if(t.type==="income")
-totalIncome+=t.amount;
-});
-
-document.getElementById(
-"budgetTotal"
-).innerText=
-"$"+totalBudget.toFixed(2);
-
-document.getElementById(
-"spentTotal"
-).innerText=
-"$"+totalSpent.toFixed(2);
-
-document.getElementById(
-"incomeTotal"
-).innerText=
-"$"+totalIncome.toFixed(2);
-
-document.getElementById(
-"remainingTotal"
-).innerText=
-"$"+(totalBudget-totalSpent).toFixed(2);
-
-let tbody=
-document.getElementById(
-"transactions"
-);
-
-tbody.innerHTML="";
-
-transactions.forEach(t=>{
-tbody.innerHTML+=`
-<tr>
-<td>${t.date}</td>
-<td>${t.description}</td>
-<td>${t.type}</td>
-<td>${t.account}</td>
-<td>${t.category}</td>
-<td>$${t.amount.toFixed(2)}</td>
-<td>
-<button onclick="deleteTransaction(${t.id})">
-Delete
-</button>
-</td>
-</tr>
-`;
-});
-
-renderBudgets();
-loadBudgetFields();
+    save();
+    render();
 }
 
-function renderBudgets(){
+function saveBudgets() {
 
-let html="";
+    Object.keys(budgets)
+    .forEach(account => {
 
-Object.keys(budgets).forEach(acc=>{
+        const field =
+            document.getElementById(
+                "budget_" + account
+            );
 
-let spent=0;
+        if (field) {
+            budgets[account] =
+                Number(field.value || 0);
+        }
 
-transactions.forEach(t=>{
-if(
-t.type==="expense" &&
-t.account===acc
-){
-spent+=t.amount;
-}
-});
+    });
 
-let pct=
-budgets[acc]?
-Math.min(
-(spent/budgets[acc])*100,
-100
-):0;
-
-let left=
-budgets[acc]-spent;
-
-html+=`
-<h4>${acc}</h4>
-<div class="small">
-Spent $${spent.toFixed(2)}
-of $${budgets[acc].toFixed(2)}
-(Left $${left.toFixed(2)})
-</div>
-
-<div class="progress">
-<div class="bar ${pct>90?'danger':''}"
-style="width:${pct}%">
-</div>
-</div>
-<br>
-`;
-});
-
-document.getElementById(
-"budgets"
-).innerHTML=html;
+    save();
+    render();
 }
 
-function loadBudgetFields(){
+function renderAccounts() {
 
-document.getElementById(
-"visaBudget"
-).value=budgets.Visa;
+    const select =
+        document.getElementById("account");
 
-document.getElementById(
-"mcBudget"
-).value=budgets.Mastercard;
+    select.innerHTML = "";
 
-document.getElementById(
-"cheqBudget"
-).value=budgets.Chequing;
+    Object.keys(budgets)
+    .forEach(account => {
 
-document.getElementById(
-"cashBudget"
-).value=budgets.Cash;
+        select.innerHTML += `
+        <option>${account}</option>
+        `;
+
+    });
+
+    let html = "";
+
+    Object.keys(budgets)
+    .forEach(account => {
+
+        html += `
+        <div style="
+            display:flex;
+            gap:10px;
+            margin-bottom:10px;
+        ">
+
+            <input
+                id="budget_${account}"
+                type="number"
+                value="${budgets[account]}"
+            >
+
+            <button
+                onclick="
+                deleteAccount(
+                    '${account}'
+                )"
+            >
+                Delete
+            </button>
+
+        </div>
+        `;
+
+    });
+
+    const container =
+        document.getElementById(
+            "accountList"
+        );
+
+    if (container) {
+        container.innerHTML = html;
+    }
 }
 
-function exportData(){
+function renderBudgets() {
 
-let data={
-transactions,
-budgets
-};
+    let html = "";
 
-let blob=
-new Blob(
-[JSON.stringify(data,null,2)],
-{type:'application/json'}
-);
+    Object.keys(budgets)
+    .forEach(acc => {
 
-let a=
-document.createElement('a');
+        let spent = 0;
 
-a.href=
-URL.createObjectURL(blob);
+        transactions.forEach(t => {
 
-a.download=
-"finance-backup.json";
+            if (
+                t.type === "expense" &&
+                t.account === acc
+            ) {
+                spent += t.amount;
+            }
 
-a.click();
+        });
+
+        let pct =
+            budgets[acc]
+            ? Math.min(
+                (spent / budgets[acc]) * 100,
+                100
+            )
+            : 0;
+
+        let left =
+            budgets[acc] - spent;
+
+        html += `
+        <h4>${acc}</h4>
+
+        <div class="small">
+            Spent $${spent.toFixed(2)}
+            of $${budgets[acc].toFixed(2)}
+            (Left $${left.toFixed(2)})
+        </div>
+
+        <div class="progress">
+            <div
+                class="bar ${pct > 90 ? 'danger' : ''}"
+                style="width:${pct}%">
+            </div>
+        </div>
+
+        <br>
+        `;
+    });
+
+    document.getElementById(
+        "budgets"
+    ).innerHTML = html;
 }
 
-function importData(event){
+function render() {
 
-let file=
-event.target.files[0];
+    let totalBudget = 0;
+    let totalSpent = 0;
+    let totalIncome = 0;
 
-if(!file)return;
+    Object.values(budgets)
+    .forEach(v => {
+        totalBudget += v;
+    });
 
-let reader=
-new FileReader();
+    transactions.forEach(t => {
 
-reader.onload=function(e){
+        if (t.type === "expense")
+            totalSpent += t.amount;
 
-let data=
-JSON.parse(e.target.result);
+        if (t.type === "income")
+            totalIncome += t.amount;
 
-transactions=
-data.transactions||[];
+    });
 
-budgets=
-data.budgets||budgets;
+    document.getElementById(
+        "budgetTotal"
+    ).innerText =
+        "$" + totalBudget.toFixed(2);
 
-save();
-render();
-};
+    document.getElementById(
+        "spentTotal"
+    ).innerText =
+        "$" + totalSpent.toFixed(2);
 
-reader.readAsText(file);
+    document.getElementById(
+        "incomeTotal"
+    ).innerText =
+        "$" + totalIncome.toFixed(2);
+
+    document.getElementById(
+        "remainingTotal"
+    ).innerText =
+        "$" +
+        (
+            totalBudget -
+            totalSpent
+        ).toFixed(2);
+
+    const tbody =
+        document.getElementById(
+            "transactions"
+        );
+
+    tbody.innerHTML = "";
+
+    transactions.forEach(t => {
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${t.date}</td>
+            <td>${t.description}</td>
+            <td>${t.type}</td>
+            <td>${t.account}</td>
+            <td>${t.category}</td>
+            <td>$${t.amount.toFixed(2)}</td>
+
+            <td>
+                <button
+                    onclick="
+                    deleteTransaction(
+                        ${t.id}
+                    )"
+                >
+                    Delete
+                </button>
+            </td>
+        </tr>
+        `;
+    });
+
+    renderBudgets();
+    renderAccounts();
 }
 
-function toggleDarkMode(){
+function exportData() {
 
-document.body.classList.toggle(
-"dark"
-);
+    const data = {
+        transactions,
+        budgets
+    };
+
+    const blob = new Blob(
+        [
+            JSON.stringify(
+                data,
+                null,
+                2
+            )
+        ],
+        {
+            type:
+            "application/json"
+        }
+    );
+
+    const a =
+        document.createElement("a");
+
+    a.href =
+        URL.createObjectURL(blob);
+
+    a.download =
+        "finance-backup.json";
+
+    a.click();
+}
+
+function importData(event) {
+
+    const file =
+        event.target.files[0];
+
+    if (!file) return;
+
+    const reader =
+        new FileReader();
+
+    reader.onload = function(e) {
+
+        const data =
+            JSON.parse(e.target.result);
+
+        transactions =
+            data.transactions || [];
+
+        budgets =
+            data.budgets || budgets;
+
+        save();
+        render();
+    };
+
+    reader.readAsText(file);
+}
+
+function toggleDarkMode() {
+
+    document.body.classList.toggle(
+        "dark"
+    );
+
+    localStorage.setItem(
+        "theme",
+        document.body.classList
+        .contains("dark")
+        ? "dark"
+        : "light"
+    );
 }
 
 render();
