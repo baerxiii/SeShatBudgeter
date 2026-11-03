@@ -182,6 +182,10 @@ input,select{
         📊 Monthly Budgets
     </button>
 
+    <button onclick="openModal('billsModal')">
+    🧾 Recurring Bills
+</button>
+
     <button onclick="toggleDarkMode()">
         🌙 Dark Mode
     </button>
@@ -218,6 +222,13 @@ input,select{
         <h3>Income</h3>
         <div id="incomeTotal" class="summary">$0</div>
     </div>
+
+    <div class="card">
+    <h3>Upcoming Bills</h3>
+    <div id="upcomingBills">
+        No Bills
+    </div>
+</div>
 
 </div>
 
@@ -274,6 +285,10 @@ placeholder="Amount">
 
 <select id="account"></select>
 
+<div id="categoryContainer">
+
+<label>Category</label>
+
 <select id="category">
 <option>Food</option>
 <option>Gas</option>
@@ -283,6 +298,8 @@ placeholder="Amount">
 <option>Medical</option>
 <option>Other</option>
 </select>
+
+</div>
 
 <button onclick="addTransaction()">
 Save Transaction
@@ -334,6 +351,57 @@ Save Budgets
 </div>
 </div>
 
+<div class="modal" id="billsModal">
+<div class="modal-content">
+
+<span class="close"
+onclick="closeModal('billsModal')">
+&times;
+</span>
+
+<h2>Recurring Bills</h2>
+
+<input
+id="billName"
+placeholder="Bill Name">
+
+<input
+id="billAmount"
+type="number"
+step="0.01"
+placeholder="Amount">
+
+<select id="billAccount"></select>
+
+<input
+id="billDay"
+type="number"
+min="1"
+max="31"
+placeholder="Due Day">
+
+<label>
+
+<input
+id="billAutoCreate"
+type="checkbox"
+checked>
+
+Auto Create Transaction
+
+</label>
+
+<button onclick="saveBill()">
+Save Bill
+</button>
+
+<hr>
+
+<div id="billList"></div>
+
+</div>
+</div>
+
 <script>
 
 let transactions=
@@ -349,11 +417,21 @@ Cash:200
 
 let editId=null;
 
+let recurringBills=
+JSON.parse(
+localStorage.getItem(
+"recurringBills"
+)
+)||[];
+
+let editBillId=null;
+
 if(localStorage.getItem("theme")==="dark"){
 document.body.classList.add("dark");
 }
 
 function save(){
+
 localStorage.setItem(
 "transactions",
 JSON.stringify(transactions)
@@ -363,6 +441,12 @@ localStorage.setItem(
 "budgets",
 JSON.stringify(budgets)
 );
+
+localStorage.setItem(
+"recurringBills",
+JSON.stringify(recurringBills)
+);
+
 }
 
 function openModal(id){
@@ -415,6 +499,25 @@ render();
 
 function renderAccounts(){
 
+const billAccount=
+document.getElementById(
+"billAccount"
+);
+
+if(billAccount){
+
+billAccount.innerHTML="";
+
+Object.keys(budgets)
+.forEach(acc=>{
+
+billAccount.innerHTML+=
+`<option>${acc}</option>`;
+
+});
+
+}
+    
 const accountSelect=
 document.getElementById("account");
 
@@ -569,7 +672,9 @@ amount.value=t.amount;
 account.value=t.account;
 category.value=t.category;
 
+updateTransactionForm();
 openModal("transactionModal");
+
 }
 
 function deleteTransaction(id){
@@ -798,7 +903,227 @@ document.body
 
 }
 
+function saveBill(){
+
+const bill={
+
+id:
+editBillId||
+Date.now(),
+
+name:
+billName.value,
+
+amount:
+Number(
+billAmount.value
+),
+
+account:
+billAccount.value,
+
+day:
+Number(
+billDay.value
+),
+
+autoCreate:
+billAutoCreate.checked
+
+};
+
+if(editBillId){
+
+recurringBills=
+recurringBills.map(
+b=>
+b.id===editBillId
+?bill
+:b
+);
+
+editBillId=null;
+
+}else{
+
+recurringBills.push(
+bill
+);
+
+}
+
+save();
+
+renderBills();
+
+billName.value="";
+billAmount.value="";
+billDay.value="";
+}
+
+function editBill(id){
+
+const bill=
+recurringBills.find(
+b=>b.id===id
+);
+
+if(!bill)return;
+
+editBillId=id;
+
+billName.value=
+bill.name;
+
+billAmount.value=
+bill.amount;
+
+billAccount.value=
+bill.account;
+
+billDay.value=
+bill.day;
+
+billAutoCreate.checked=
+bill.autoCreate;
+}
+
+function deleteBill(id){
+
+if(
+!confirm(
+"Delete bill?"
+)
+)return;
+
+recurringBills=
+recurringBills.filter(
+b=>b.id!==id
+);
+
+save();
+
+renderBills();
+}
+
+function renderBills(){
+
+let html="";
+
+recurringBills.forEach(
+bill=>{
+
+html+=`
+
+<div class="card">
+
+<strong>
+${bill.name}
+</strong>
+
+<br>
+
+$${bill.amount.toFixed(2)}
+
+<br>
+
+Due Day:
+${bill.day}
+
+<br>
+
+Account:
+${bill.account}
+
+<br><br>
+
+<button
+onclick="
+editBill(
+${bill.id}
+)">
+Edit
+</button>
+
+<button
+onclick="
+deleteBill(
+${bill.id}
+)">
+Delete
+</button>
+
+</div>
+
+<br>
+
+`;
+
+});
+
+billList.innerHTML=
+html;
+
+renderUpcomingBills();
+}
+
+function renderUpcomingBills(){
+
+if(!upcomingBills)return;
+
+if(
+!recurringBills.length
+){
+
+upcomingBills.innerHTML=
+"No Bills";
+
+return;
+
+}
+
+const sorted=
+[...recurringBills]
+.sort(
+(a,b)=>
+a.day-b.day
+);
+
+upcomingBills.innerHTML=
+sorted
+.slice(0,5)
+.map(
+b=>
+`${b.day}: ${b.name}`
+)
+.join("<br>");
+}
+
+function updateTransactionForm(){
+
+const t=
+document.getElementById(
+"type"
+).value;
+
+document.getElementById(
+"categoryContainer"
+).style.display=
+t==="income"
+?"none"
+:"block";
+}
+    
+
 render();
+renderBills();
+
+type.addEventListener(
+"change",
+updateTransactionForm
+);
+
+updateTransactionForm();
 
 </script>
 </body>
